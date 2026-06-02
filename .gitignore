@@ -1,0 +1,21 @@
+# ── Secrets / local config (contains plaintext credentials) ─────────────────
+config.json
+
+# ── Test-data exports ───────────────────────────────────────────────────────
+*.csv
+
+# ── Local databases / tooling artifacts ─────────────────────────────────────
+*.db
+.claude/
+.claude-flow/
+
+# ── Python ──────────────────────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db

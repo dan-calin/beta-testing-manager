@@ -1,0 +1,16 @@
+{
+  "username": "",
+  "user_id": "",
+  "supabase_url": "",
+  "supabase_anon_key": "",
+  "obs_host": "localhost",
+  "obs_port": 4455,
+  "obs_password": "",
+  "overlay_hotkey": "<shift>+f+o",
+  "overlay_opacity": 1.0,
+  "overlay_x": 100,
+  "overlay_y": 100,
+  "overlay_w": 440,
+  "overlay_h": 340,
+  "theme": "dark"
+}
