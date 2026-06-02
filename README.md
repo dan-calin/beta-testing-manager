@@ -1,5 +1,7 @@
 # Beta Testing Manager
 
+![Beta Testing Manager — Test. Timestamp. Ship.](docs/banner.png)
+
 A lightweight, dark-themed Windows 11 desktop app for beta testers. Manage test lists, log OBS timestamps, and overlay everything on top of any app — no alt-tabbing required.
 
 ---

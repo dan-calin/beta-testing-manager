@@ -16,6 +16,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 
+# ── Marketing / ad assets (local-only, not part of the source) ──────────────
+docs/marketing/
+
 # ── OS ──────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
