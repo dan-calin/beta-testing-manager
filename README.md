@@ -4,6 +4,25 @@ A lightweight, dark-themed Windows 11 desktop app for beta testers. Manage test 
 
 ---
 
+## Screenshots
+
+![Beta Testing Manager — main window](docs/screenshot-main.png)
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshot-overlay.png" alt="Always-on-top overlay" /><br/>
+      <sub><b>Always-on-top overlay</b> — track tests over any app, draggable & adjustable opacity.</sub>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshot-settings.png" alt="OBS WebSocket settings" /><br/>
+      <sub><b>Settings</b> — connect to OBS, configure Supabase sync, customise the hotkey.</sub>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Prerequisites
 
 | Requirement | Version |
