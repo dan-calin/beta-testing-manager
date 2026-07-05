@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 from app.models.test_item import TestItem
 from app.models.test_list import TestList
@@ -35,8 +34,17 @@ class Session:
     def from_supabase_dict(cls, d: dict, items: list[dict]) -> "Session":
         sid = d.get("id", str(uuid.uuid4()))
         tl = TestList(name=d.get("session_name", "Session"), list_id=sid)
-        for item_dict in items:
+        sorted_items = sorted(
+            items,
+            key=lambda row: (
+                row.get("sort_order") is None,
+                row.get("sort_order") or 0,
+                row.get("created_at", ""),
+            ),
+        )
+        for item_dict in sorted_items:
             tl.items.append(TestItem.from_supabase_dict(item_dict))
+        tl.normalize_sort_order()
         return cls(
             id=sid,
             user_id=d.get("user_id", ""),
@@ -52,4 +60,4 @@ class Session:
         def _safe(s: str) -> str:
             return "".join(c if (c.isalnum() or c == "_") else "_" for c in s)
 
-        return f"{_safe(username)}_{_safe(self.session_name)}_{date_str}.txt"
+        return f"{_safe(username)}_{_safe(self.session_name)}_{date_str}.csv"

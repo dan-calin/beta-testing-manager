@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -29,6 +30,7 @@ class SessionController(QObject):
     item_updated = pyqtSignal(str)            # item_id
     sessions_list_changed = pyqtSignal()
     save_complete = pyqtSignal(bool, str)     # (success, message)
+    _session_loaded = pyqtSignal(object)
 
     def __init__(self, obs_ctrl: OBSController, parent=None) -> None:
         super().__init__(parent)
@@ -43,6 +45,7 @@ class SessionController(QObject):
         self._db_executor = ThreadPoolExecutor(
             max_workers=1, thread_name_prefix="db-writer"
         )
+        self._session_loaded.connect(self._apply_loaded_session)
 
     def _async(self, func, *args, **kwargs) -> None:
         """Fire-and-forget background DB call."""
@@ -57,6 +60,13 @@ class SessionController(QObject):
 
     def _fetch_remote_sessions(self, uid: str) -> None:
         try:
+            if not uid:
+                cfg = ConfigManager.instance()
+                username = cfg.get("username", "")
+                if username and self._db.is_connected():
+                    uid = self._db.ensure_user(username) or ""
+                    if uid:
+                        cfg.set("user_id", uid)
             sessions = self._db.fetch_sessions_for_user(uid)
         except Exception as e:
             print(f"[DB] fetch_sessions: {e}", file=sys.stderr)
@@ -85,11 +95,17 @@ class SessionController(QObject):
         self.session_changed.emit()
 
     def load_session(self, session_id: str) -> None:
-        rows = [s for s in self._remote_sessions if s["id"] == session_id]
+        rows = [s for s in self._remote_sessions if s.get("id") == session_id]
         if not rows:
             return
-        items = self._db.fetch_items_for_session(session_id)
-        self._session = Session.from_supabase_dict(rows[0], items)
+        self._db_executor.submit(self._load_session_worker, dict(rows[0]))
+
+    def _load_session_worker(self, row: dict) -> None:
+        items = self._db.fetch_items_for_session(row["id"])
+        self._session_loaded.emit(Session.from_supabase_dict(row, items))
+
+    def _apply_loaded_session(self, session: Session) -> None:
+        self._session = session
         self.session_changed.emit()
 
     def rename_session(self, new_name: str) -> None:
@@ -129,9 +145,13 @@ class SessionController(QObject):
     def remove_item(self, item_id: str) -> None:
         if not self._session:
             return
-        self._session.test_list.remove_item(item_id)
-        self._async(self._db.delete_test_item, item_id)
-        self.session_changed.emit()
+        if self._session.test_list.remove_item(item_id):
+            self._async(self._db.delete_test_item, item_id)
+            self._async(
+                self._db.upsert_test_items_batch,
+                list(self._session.test_list.items),
+            )
+            self.session_changed.emit()
 
     def rename_item(self, item_id: str, new_name: str) -> None:
         item = self._get(item_id)
@@ -196,6 +216,10 @@ class SessionController(QObject):
         if not self._session:
             return
         if self._session.test_list.move_item(item_id, direction):
+            self._async(
+                self._db.upsert_test_items_batch,
+                list(self._session.test_list.items),
+            )
             # Full refresh — order changed, indices invalidated
             self.session_changed.emit()
 
@@ -214,27 +238,65 @@ class SessionController(QObject):
         if not self._session:
             self.save_complete.emit(False, "No active session to save.")
             return
-        self._db.upsert_session(self._session)
-        self._async(self._db.upsert_test_items_batch, list(self._session.test_list.items))
         username = ConfigManager.instance().get("username", "tester")
-        try:
-            path = self._export.export_csv(self._session, username, export_dir)
-            self.save_complete.emit(True, f"Saved. CSV → {os.path.basename(path)}")
-        except Exception as e:
-            self.save_complete.emit(False, f"DB saved. CSV failed: {e}")
+        session = copy.deepcopy(self._session)
+        self._db_executor.submit(
+            self._save_session_worker, session, username, export_dir, None
+        )
 
     def save_session_to_path(self, path: str) -> None:
         if not self._session:
             self.save_complete.emit(False, "No active session.")
             return
-        self._db.upsert_session(self._session)
-        self._async(self._db.upsert_test_items_batch, list(self._session.test_list.items))
         username = ConfigManager.instance().get("username", "tester")
+        session = copy.deepcopy(self._session)
+        self._db_executor.submit(
+            self._save_session_worker, session, username, None, path
+        )
+
+    def _save_session_worker(
+        self,
+        session: Session,
+        username: str,
+        export_dir: str | None,
+        path: str | None,
+    ) -> None:
+        session.test_list.normalize_sort_order()
         try:
-            self._export.export_to_path(self._session, username, path)
-            self.save_complete.emit(True, f"Saved → {os.path.basename(path)}")
+            export_path = path or self._export.export_csv(session, username, export_dir or ".")
+            if path:
+                self._export.export_to_path(session, username, path)
         except Exception as e:
             self.save_complete.emit(False, f"Export failed: {e}")
+            return
+
+        basename = os.path.basename(export_path)
+        if not self._db.is_connected():
+            self.save_complete.emit(
+                True,
+                f"Exported CSV -> {basename}. Cloud sync skipped; Supabase is not configured.",
+            )
+            return
+
+        if not session.user_id:
+            cfg = ConfigManager.instance()
+            uid = self._db.ensure_user(username or cfg.get("username", ""))
+            if uid:
+                cfg.set("user_id", uid)
+                session.user_id = uid
+
+        session_ok = self._db.upsert_session(session)
+        items_ok = self._db.upsert_test_items_batch(list(session.test_list.items))
+        if session_ok and items_ok:
+            self.save_complete.emit(True, f"Saved and synced -> {basename}")
+        else:
+            self.save_complete.emit(
+                False,
+                f"Exported CSV -> {basename}, but cloud sync failed. Check Supabase settings.",
+            )
+
+    def shutdown(self) -> None:
+        self._db_executor.shutdown(wait=False, cancel_futures=True)
 
     # ---- Item lookup (used by views) ----
 

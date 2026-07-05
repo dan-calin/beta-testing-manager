@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
         self._obs = obs_ctrl
         self._overlay: OverlayWindow | None = None
         self._hotkey_listener = None
+        self._quitting = False
 
         self.setWindowTitle(f"{APP_NAME}")
         self.setMinimumSize(1080, 660)
@@ -482,10 +483,14 @@ class MainWindow(QMainWindow):
 
         path, _ = QFileDialog.getSaveFileName(
             self, "Save & Export", default_path,
-            "Text Files (*.txt);;All Files (*)"
+            "CSV Files (*.csv);;All Files (*)"
         )
         if not path:
             return  # User cancelled — do nothing.
+        if not os.path.splitext(path)[1]:
+            path += ".csv"
+        self._save_btn.setEnabled(False)
+        self.statusBar().showMessage("Saving...")
         self._ctrl.save_session_to_path(path)
 
     # ════════════════════════════════════════════════════════════
@@ -515,6 +520,7 @@ class MainWindow(QMainWindow):
         self._session_count.setText(str(len(sessions)))
 
     def _on_save_complete(self, success: bool, msg: str) -> None:
+        self._save_btn.setEnabled(self._ctrl.current_session() is not None)
         if success:
             QMessageBox.information(self, "Saved", msg)
         else:
@@ -558,12 +564,16 @@ class MainWindow(QMainWindow):
         dlg = SettingsDialog(self._obs, self)
         if dlg.exec():
             self._setup_hotkey()
+            self._ctrl.load_remote_sessions()
             if self._overlay:
                 self._overlay.setWindowOpacity(
                     float(ConfigManager.instance().get("overlay_opacity", 0.85))
                 )
 
     def closeEvent(self, event) -> None:
+        if self._quitting:
+            event.accept()
+            return
         event.ignore()
         self.hide()
         self._tray.showMessage(
@@ -578,3 +588,17 @@ class MainWindow(QMainWindow):
             self.showNormal()
             self.raise_()
             self.activateWindow()
+
+    def shutdown(self) -> None:
+        self._quitting = True
+        if self._hotkey_listener is not None:
+            try:
+                self._hotkey_listener.stop()
+            except Exception:
+                pass
+            self._hotkey_listener = None
+        if self._overlay is not None:
+            self._overlay.hide()
+        self._obs.disconnect_obs()
+        self._ctrl.shutdown()
+        self._tray.hide()

@@ -1,5 +1,11 @@
+# Runtime dependencies
 PyQt6==6.7.1
 supabase==2.7.4
 obsws-python==1.6.1
 pynput==1.7.7
-python-dateutil==2.9.0
+python-dateutil==2.9.0.post0
+
+# Audit/development tools
+ruff==0.15.20
+pytest==9.1.1
+pip-audit==2.10.1

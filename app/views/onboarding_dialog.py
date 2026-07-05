@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from app.config_manager import ConfigManager

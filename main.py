@@ -11,7 +11,6 @@ import os
 # Ensure the project root is on the path so `app.*` imports resolve
 sys.path.insert(0, os.path.dirname(__file__))
 
-from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from app.config_manager import ConfigManager
@@ -43,6 +42,7 @@ def main() -> None:
 
     # Main window
     window = MainWindow(session_ctrl, obs_ctrl)
+    app.aboutToQuit.connect(window.shutdown)
     window.show()
 
     sys.exit(app.exec())

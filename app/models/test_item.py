@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-from app.constants import CSV_COLUMNS, TestStatus
+from app.constants import TestStatus
 
 
 def _now_iso() -> str:
@@ -57,6 +57,7 @@ class TestItem:
     stop_timestamp: Optional[str] = None
     notes: str = ""
     created_at: str = field(default_factory=_now_iso)
+    sort_order: int = 0
 
     @property
     def duration_seconds(self) -> Optional[float]:
@@ -88,6 +89,7 @@ class TestItem:
             "stop_timestamp": self.stop_timestamp,
             "notes": self.notes,
             "created_at": self.created_at,
+            "sort_order": self.sort_order,
         }
 
     @classmethod
@@ -101,4 +103,5 @@ class TestItem:
             stop_timestamp=d.get("stop_timestamp"),
             notes=d.get("notes", ""),
             created_at=d.get("created_at", _now_iso()),
+            sort_order=int(d.get("sort_order") or 0),
         )

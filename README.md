@@ -74,6 +74,18 @@ pip install -r requirements.txt
 
 ## First Run
 
+### Easy setup for first-time users
+
+Double-click:
+
+```text
+setup_and_run.bat
+```
+
+The script creates `venv`, installs `requirements.txt`, and starts the app.
+
+### Manual setup
+
 ```bash
 python main.py
 ```
@@ -110,7 +122,7 @@ python main.py
 Toggle the floating overlay with the hotkey (default: `Ctrl+Shift+O`).
 
 - The overlay floats above all normal windows and windowed-fullscreen (borderless) apps.
-- Drag it anywhere on screen. Resize by dragging the edges.
+- Drag it anywhere on screen.
 - Adjust opacity with the `α` slider in the overlay title bar.
 - Changes sync with the main window in real time.
 

@@ -6,11 +6,9 @@ from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -208,7 +206,16 @@ class SettingsDialog(QDialog):
     def _save_and_accept(self) -> None:
         cfg = ConfigManager.instance()
         old_username = cfg.get("username", "")
+        old_supabase_url = cfg.get("supabase_url", "")
+        old_supabase_key = cfg.get("supabase_anon_key", "")
+        old_user_id = cfg.get("user_id", "")
         new_username = self._username_edit.text().strip()
+        new_supabase_url = self._sb_url_edit.text().strip()
+        new_supabase_key = self._sb_key_edit.text().strip()
+        credentials_changed = (
+            new_supabase_url != old_supabase_url
+            or new_supabase_key != old_supabase_key
+        )
 
         new_theme = self._theme_combo.currentData() or "dark"
         theme_changed = new_theme != cfg.get("theme", "dark")
@@ -216,8 +223,8 @@ class SettingsDialog(QDialog):
         cfg.update(
             {
                 "username": new_username,
-                "supabase_url": self._sb_url_edit.text().strip(),
-                "supabase_anon_key": self._sb_key_edit.text().strip(),
+                "supabase_url": new_supabase_url,
+                "supabase_anon_key": new_supabase_key,
                 "obs_host": self._obs_host.text().strip(),
                 "obs_port": self._obs_port.value(),
                 "obs_password": self._obs_pass.text(),
@@ -236,10 +243,17 @@ class SettingsDialog(QDialog):
 
         svc = SupabaseService.instance()
         svc.reinitialise()
-        if svc.is_connected() and new_username and new_username != old_username:
+        should_ensure_user = (
+            svc.is_connected()
+            and new_username
+            and (credentials_changed or new_username != old_username or not old_user_id)
+        )
+        if should_ensure_user:
             uid = svc.ensure_user(new_username)
             if uid:
                 cfg.set("user_id", uid)
+        elif not svc.is_connected() and credentials_changed:
+            cfg.set("user_id", "")
 
         # Reconnect OBS with new settings
         self._obs.reconnect()

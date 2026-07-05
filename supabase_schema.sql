@@ -57,11 +57,18 @@ CREATE TABLE IF NOT EXISTS public.test_items (
     start_timestamp TEXT,
     stop_timestamp  TEXT,
     notes           TEXT        NOT NULL DEFAULT '',
+    sort_order      INTEGER     NOT NULL DEFAULT 0,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE public.test_items
+    ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_test_items_session_id
     ON public.test_items(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_test_items_session_sort_order
+    ON public.test_items(session_id, sort_order);
 
 -- ------------------------------------------------------------
 --  Row Level Security

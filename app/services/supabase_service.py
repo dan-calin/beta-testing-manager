@@ -130,8 +130,10 @@ class SupabaseService:
             return False
 
     def upsert_test_items_batch(self, items: list[TestItem]) -> bool:
-        if not self._client or not items:
+        if not self._client:
             return False
+        if not items:
+            return True
         try:
             self._client.table("test_items").upsert(
                 [i.to_supabase_dict() for i in items], on_conflict="id"
@@ -159,6 +161,7 @@ class SupabaseService:
                 self._client.table("test_items")
                 .select("*")
                 .eq("session_id", session_id)
+                .order("sort_order")
                 .order("created_at")
                 .execute()
             )

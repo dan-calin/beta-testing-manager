@@ -14,12 +14,21 @@ class TestList:
         self.items: list[TestItem] = []
 
     def add_item(self, name: str, session_id: str = "") -> TestItem:
-        item = TestItem(session_id=session_id, system_name=name)
+        item = TestItem(
+            session_id=session_id,
+            system_name=name,
+            sort_order=len(self.items),
+        )
         self.items.append(item)
         return item
 
-    def remove_item(self, item_id: str) -> None:
+    def remove_item(self, item_id: str) -> bool:
+        before = len(self.items)
         self.items = [i for i in self.items if i.id != item_id]
+        changed = len(self.items) != before
+        if changed:
+            self.normalize_sort_order()
+        return changed
 
     def get_item(self, item_id: str) -> Optional[TestItem]:
         for item in self.items:
@@ -34,6 +43,7 @@ class TestList:
         existing_ids = set(new_order)
         reordered += [i for i in self.items if i.id not in existing_ids]
         self.items = reordered
+        self.normalize_sort_order()
 
     def move_item(self, item_id: str, direction: int) -> bool:
         """Move an item up (-1) or down (+1).  Returns True if it actually moved."""
@@ -43,9 +53,14 @@ class TestList:
                 if 0 <= new_pos < len(self.items):
                     self.items.pop(i)
                     self.items.insert(new_pos, item)
+                    self.normalize_sort_order()
                     return True
                 return False
         return False
+
+    def normalize_sort_order(self) -> None:
+        for idx, item in enumerate(self.items):
+            item.sort_order = idx
 
     def all_passed(self) -> bool:
         return bool(self.items) and all(i.status == TestStatus.PASS for i in self.items)
